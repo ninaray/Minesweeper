@@ -1,0 +1,203 @@
+//
+//  8x8ViewController.swift
+//  Final Project
+//
+//  Created by Nina Ray on 11/26/15.
+//  Copyright © 2015 Nina Ray. All rights reserved.
+//
+
+import UIKit
+import AVFoundation
+
+class EasyViewController: UIViewController {
+    
+    @IBOutlet weak var highScore: UILabel!
+    
+    @IBOutlet weak var timer: UILabel!
+
+    @IBOutlet weak var easyBoard: UIView!
+    
+    @IBOutlet weak var youWon: UILabel!
+    
+    var audioPlayer:AVAudioPlayer!
+    
+    var nice: AVAudioPlayer!
+    
+    var fullTime = 0  {
+        didSet {
+            self.timer.text = "Time: \(fullTime)"
+            self.timer.sizeToFit()
+        }
+    }
+    
+    var time: NSTimer?
+    
+    let boarddim: Int = 8
+    var minesweeperboard: MineSweeperBoard
+    var squareButtonarray: [SquareButton] = []
+    var imageArray: [SquareImage] = []
+    
+    required init?(coder aDecoder: NSCoder) {
+        self.minesweeperboard = MineSweeperBoard(size: boarddim)
+        //creates a board with boarddim dimensions
+        super.init(coder: aDecoder)
+        //not really sure what this does but let's just roll with it
+    }
+    
+    func hitMine() {
+        let newAlert = UIAlertView()
+        newAlert.addButtonWithTitle("Try Again? Tap 'New Game' ")
+        newAlert.title = "Whoops!"
+        newAlert.message = "Looks like you hit a mine."
+        newAlert.show()
+        newAlert.delegate = self
+        audioPlayer.play()
+        self.youDied()
+    }
+    
+    //Restart the game when you hit "Try Again?"
+    func alertView(View: UIAlertView!, clickedButtonAtIndex buttonIndex: Int) {
+        self.startNewGame()
+    }
+
+    func youDied() {
+        self.time = nil
+    }
+    
+    func startNewGame() {
+        self.minesweeperboard.resetGame()
+        for squareButton in self.squareButtonarray {
+            squareButton.userInteractionEnabled = true
+            squareButton.setTitle("-", forState: .Normal)
+        }
+        self.fullTime = 0
+
+    }
+    
+    func didYouWin() -> Bool {
+        var minesuntouched = true
+        var allsquares = true
+        var win = false
+        for button in squareButtonarray {
+            if button.square.isMine == true {
+                if button.square.showSquare == true {
+                    minesuntouched = false
+                }
+            }
+            if button.square.isMine == false {
+                if button.square.showSquare == false {
+                    allsquares = false
+                }
+            }
+        }
+        if minesuntouched == true {
+            if allsquares == true {
+                win = true
+            }
+        }
+        else {
+            win = false
+        }
+        return win
+    }
+    
+    func tapSquareButton(sender: SquareButton) {
+        sender.setTitle("", forState: .Normal)
+        sender.square.showSquare = true
+        sender.setTitle("\(sender.getText())", forState: .Normal)
+        //if sender.getText() == "" {
+           // if 0 <= (sender.square.column - 1) && (sender.square.column - 1) < minesweeperboard.size {
+             //   let squareButton = minesweeperboard.mineboard[1][1]
+            //check if 1 left exists
+            //shift **to top corner
+            //perform tapSquareButton
+           //     }
+       //     }
+        
+        if sender.square.isMine {
+            self.hitMine()
+        }
+        sender.userInteractionEnabled = false
+        if didYouWin() == true {
+            print("You Won!")
+            if "High Score: \(fullTime)" > self.highScore.text {
+                self.highScore.text = "High Score: \(fullTime)"
+                self.highScore.sizeToFit()
+            }
+            youWon.hidden = false
+            youWon.text = "CONGRATULATIONS!!!!!!"
+            nice.play()
+            nice.numberOfLoops = -1
+        }
+    }
+
+
+    func createBoard() {
+        for row in 0 ... minesweeperboard.size-1 {
+            for column in 0 ... minesweeperboard.size-1 {
+                let squareImage = minesweeperboard.mineboard[row][column]
+                let squareImageDim: CGFloat = self.easyBoard.frame.width/CGFloat(boarddim)
+                //superview, NOT it's own view
+                let addSquareImage = SquareImage(newsquare: squareImage, squareDim: squareImageDim, squareMargin: 0)
+                self.easyBoard.addSubview(addSquareImage)
+                self.imageArray.append(addSquareImage)
+                
+                //This wasn't really working out but I'm tryna add a picture of a bomb
+
+                
+                
+                let squareButton = minesweeperboard.mineboard[row][column]
+                let squareButtonDim: CGFloat = self.easyBoard.frame.width/CGFloat(boarddim)
+                //superview, NOT it's own view
+                let addSquareButton = SquareButton(newsquare: squareButton, squareDim: squareButtonDim, row: 8, col: 8)
+                addSquareButton.setTitleColor(UIColor.blackColor(), forState: .Normal)
+                //when putting the numbers in
+                addSquareButton.addTarget(self, action: "tapSquareButton:", forControlEvents: .TouchUpInside)
+                self.easyBoard.addSubview(addSquareButton)
+                self.squareButtonarray.append(addSquareButton)
+            
+            }
+        }
+    }
+    
+    
+    override func viewDidAppear(animated: Bool) {
+        super.viewDidAppear(animated)
+        self.title = "Level: Easy"
+        time = NSTimer.scheduledTimerWithTimeInterval(1, target: self, selector: "timerFired:", userInfo: nil, repeats: true)
+        
+        let soundURL = NSURL(fileURLWithPath: NSBundle.mainBundle().pathForResource("explosion", ofType: "mp3")!)
+        do {
+            try AVAudioSession.sharedInstance().setCategory(AVAudioSessionCategoryPlayback)
+            try AVAudioSession.sharedInstance().setActive(true)
+            try audioPlayer = AVAudioPlayer(contentsOfURL: soundURL)
+            audioPlayer.prepareToPlay()
+        } catch {
+            print("ERROR")
+        }
+        self.createBoard()
+        self.startNewGame()
+    
+        let nicesoundURL = NSURL(fileURLWithPath: NSBundle.mainBundle().pathForResource("nice", ofType: "mp3")!)
+        do {
+            try AVAudioSession.sharedInstance().setCategory(AVAudioSessionCategoryPlayback)
+            try AVAudioSession.sharedInstance().setActive(true)
+            try nice = AVAudioPlayer(contentsOfURL: nicesoundURL)
+            nice.prepareToPlay()
+        } catch {
+            print("ERROR")
+        }
+    }
+    
+    func timerFired(sender: NSTimer) {
+        self.fullTime++
+    }
+    
+    @IBAction func newGame(sender: UIButton) {
+        minesweeperboard.resetGame()
+        self.startNewGame()
+        self.youDied()
+    }
+    
+}
+
